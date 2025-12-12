@@ -1,0 +1,296 @@
+import {
+  ArrayNode,
+  ASTNode,
+  createArrayNode,
+  createLiteralNode,
+  createUnaryNode,
+  ExpressionNode,
+  ObjectNode,
+  ObjectProperty,
+  Operator,
+  Operators,
+} from "./ast.ts";
+import { Token, TokenType } from "./token.ts";
+
+export type Parser = {
+  tokens: Token[];
+  pos: number;
+  bindingPowers: Partial<Record<TokenType, number>>;
+  nud: Map<TokenType, NudFn>;
+  led: Map<TokenType, LedFn>;
+};
+
+type NudFn = (parser: Parser, token: Token) => ExpressionNode;
+type LedFn = (
+  parser: Parser,
+  left: ExpressionNode,
+  token: Token
+) => ExpressionNode;
+
+const precedence: Record<Operator, number> = {
+  [Operators.UNARY_BANG]: 80,
+  [Operators.UNARY_MINUS]: 80,
+  [Operators.UNARY_PLUS]: 80,
+  [Operators.BINARY_EXPONENT]: 70,
+  [Operators.BINARY_DIVIDES]: 60,
+  [Operators.BINARY_TIMES]: 60,
+  [Operators.BINARY_PLUS]: 50,
+  [Operators.BINARY_MINUS]: 50,
+};
+
+const bindingPowers: Partial<Record<TokenType, number>> = {
+  [TokenType.CARET]: precedence[Operators.BINARY_EXPONENT],
+  [TokenType.SLASH]: precedence[Operators.BINARY_DIVIDES],
+  [TokenType.STAR]: precedence[Operators.BINARY_TIMES],
+  [TokenType.MINUS]: precedence[Operators.BINARY_MINUS],
+  [TokenType.PLUS]: precedence[Operators.BINARY_PLUS],
+};
+
+const nud = new Map<TokenType, NudFn>([
+  [
+    TokenType.NUMBER,
+    (_parser, token) => createLiteralNode(Number(token.lexeme), token),
+  ],
+  [
+    TokenType.STRING,
+    (_parser, token) => createLiteralNode(token.lexeme, token),
+  ],
+  [TokenType.TRUE, (_parser, token) => createLiteralNode(true, token)],
+  [TokenType.FALSE, (_parser, token) => createLiteralNode(false, token)],
+  [TokenType.NULL, (_parser, token) => createLiteralNode(null, token)],
+  [
+    TokenType.BANG,
+    (parser, token) =>
+      createUnaryNode(
+        Operators.UNARY_BANG,
+        parseExpression(parser, precedence[Operators.UNARY_BANG]),
+        token
+      ),
+  ],
+  [
+    TokenType.PLUS,
+    (parser, token) =>
+      createUnaryNode(
+        Operators.UNARY_PLUS,
+        parseExpression(parser, precedence[Operators.UNARY_PLUS]),
+        token
+      ),
+  ],
+  [
+    TokenType.MINUS,
+    (parser, token) =>
+      createUnaryNode(
+        Operators.BINARY_MINUS,
+        parseExpression(parser, precedence[Operators.UNARY_MINUS]),
+        token
+      ),
+  ],
+  [
+    TokenType.LEFT_PAREN,
+    (parser, _token) => {
+      const expr = parseExpression(parser);
+      const end = advance(parser);
+      if (end.type !== TokenType.RIGHT_PAREN)
+        throw new Error(
+          `Expected ) at line ${end.line} column ${end.column}, got ${end.lexeme}`
+        );
+      return expr;
+    },
+  ],
+]);
+
+const led = new Map<TokenType, LedFn>([
+  [
+    TokenType.PLUS,
+    (parser, left, token) => ({
+      type: "Binary",
+      operator: Operators.BINARY_PLUS,
+      left,
+      right: parseExpression(parser, precedence[Operators.BINARY_PLUS]),
+      token,
+    }),
+  ],
+  [
+    TokenType.MINUS,
+    (parser, left, token) => ({
+      type: "Binary",
+      operator: Operators.BINARY_MINUS,
+      left,
+      right: parseExpression(parser, precedence[Operators.BINARY_MINUS]),
+      token,
+    }),
+  ],
+  [
+    TokenType.STAR,
+    (parser, left, token) => ({
+      type: "Binary",
+      operator: Operators.BINARY_TIMES,
+      left,
+      right: parseExpression(parser, precedence[Operators.BINARY_TIMES]),
+      token,
+    }),
+  ],
+  [
+    TokenType.SLASH,
+    (parser, left, token) => ({
+      type: "Binary",
+      operator: Operators.BINARY_DIVIDES,
+      left,
+      right: parseExpression(parser, precedence[Operators.BINARY_DIVIDES]),
+      token,
+    }),
+  ],
+  [
+    TokenType.CARET,
+    (parser, left, token) => ({
+      type: "Binary",
+      operator: Operators.BINARY_EXPONENT,
+      left,
+      right: parseExpression(parser, precedence[Operators.BINARY_EXPONENT] - 1),
+      token,
+    }),
+  ],
+]);
+
+export function createParser(tokens: Token[]): Parser {
+  return {
+    tokens,
+    pos: 0,
+    bindingPowers,
+    nud,
+    led,
+  };
+}
+
+function resetParser(parser: Parser) {
+  parser.pos = 0;
+}
+
+function peek(parser: Parser): Token {
+  return parser.tokens[parser.pos];
+}
+
+function isAtEnd(parser: Parser): boolean {
+  return parser.pos >= parser.tokens.length;
+}
+
+function advance(parser: Parser): Token {
+  return parser.tokens[parser.pos++];
+}
+
+function parseExpression(parser: Parser, rbp = 0): ExpressionNode {
+  const token = advance(parser);
+
+  const nudFn = parser.nud.get(token.type);
+  if (!nudFn)
+    throw new Error(
+      `Expected expression at line ${token.line} column ${token.column}, got ${token.lexeme}`
+    );
+
+  let left = nudFn(parser, token);
+  let next = peek(parser);
+
+  while ((parser.bindingPowers[next.type] ?? 0) > rbp) {
+    const ledFn = parser.led.get(next.type);
+    if (!ledFn)
+      throw new Error(
+        `Expected operator at line ${next.line} column ${next.column}, got ${next.lexeme} `
+      );
+    advance(parser);
+    left = ledFn(parser, left, next);
+    next = peek(parser);
+  }
+
+  return left;
+}
+
+function parseArray(parser: Parser): ArrayNode {
+  const startToken = advance(parser);
+  if (startToken.type !== TokenType.LEFT_BRACKET) {
+    throw new Error(
+      `Expected '[' at line ${startToken.line} column ${startToken.column}, got ${startToken.lexeme}`
+    );
+  }
+  const elements: ASTNode[] = [];
+
+  let next = peek(parser);
+  while (!isAtEnd(parser) && next.type !== TokenType.RIGHT_BRACKET) {
+    const expr = parseExpression(parser);
+    elements.push(expr);
+
+    // If there's a comma, consume it, otherwise expect a closing bracket
+    next = peek(parser);
+    if (next.type === TokenType.COMMA) {
+      advance(parser); // Consume the comma
+    } else if (next.type !== TokenType.RIGHT_BRACKET) {
+      throw new Error(
+        `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`
+      );
+    }
+  }
+
+  const endToken = advance(parser); // Consume the RIGHT_BRACKET
+  if (endToken.type !== TokenType.RIGHT_BRACKET) {
+    throw new Error(
+      `Expected ']' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`
+    );
+  }
+
+  return createArrayNode(elements, startToken, endToken);
+}
+
+function parseObject(parser: Parser): ObjectNode {
+  const startToken = advance(parser); // Consume left brace
+  if (startToken.type !== TokenType.LEFT_BRACE) {
+    throw new Error(
+      `Expected '{' at line ${startToken.line} column ${startToken.column}, got ${startToken.lexeme}`
+    );
+  }
+  const properties: ObjectProperty[] = [];
+
+  let next = peek(parser);
+  while (!isAtEnd(parser) && next.type !== TokenType.RIGHT_BRACE) {
+    const propertyName = parseExpression(parser);
+    const expr = parseExpression(parser);
+
+    // If there's a comma, consume it, otherwise expect a closing bracket
+    next = peek(parser);
+    if (next.type === TokenType.COMMA) {
+      advance(parser); // Consume the comma
+    } else if (next.type !== TokenType.RIGHT_BRACKET) {
+      throw new Error(
+        `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`
+      );
+    }
+  }
+
+  const endToken = advance(parser); // Consume the RIGHT_BRACKET
+  if (endToken.type !== TokenType.RIGHT_BRACKET) {
+    throw new Error(
+      `Expected ']' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`
+    );
+  }
+
+  return createArrayNode(elements, startToken, endToken);
+}
+
+export function parse(parser: Parser): ASTNode {
+  resetParser(parser);
+
+  const token = peek(parser);
+
+  let result: ASTNode;
+  switch (token.type) {
+    case TokenType.LEFT_BRACE:
+      // result = parseObject(parser);
+      result = parseExpression(parser);
+      break;
+    case TokenType.LEFT_BRACKET:
+      result = parseArray(parser);
+      break;
+    default:
+      result = parseExpression(parser);
+  }
+
+  return result;
+}
