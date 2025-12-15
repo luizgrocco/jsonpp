@@ -1,11 +1,11 @@
 import {
-  ArrayNode,
   ASTNode,
   createArrayNode,
   createLiteralNode,
+  createObjectNode,
+  createObjectProperty,
   createUnaryNode,
   ExpressionNode,
-  ObjectNode,
   ObjectProperty,
   Operator,
   Operators,
@@ -95,6 +95,91 @@ const nud = new Map<TokenType, NudFn>([
           `Expected ) at line ${end.line} column ${end.column}, got ${end.lexeme}`
         );
       return expr;
+    },
+  ],
+  [
+    TokenType.LEFT_BRACKET,
+    (parser, token) => {
+      const startToken = token;
+      const arrayElements: ASTNode[] = [];
+
+      let next = peek(parser);
+      while (!isAtEnd(parser) && next.type !== TokenType.RIGHT_BRACKET) {
+        const expr = parseExpression(parser);
+        arrayElements.push(expr);
+
+        next = peek(parser);
+        // If there's a closing bracket, array has finished, break.
+        if (next.type === TokenType.RIGHT_BRACKET) {
+          break;
+        }
+        // If there's a comma, consume it and keep going.
+        if (next.type === TokenType.COMMA) {
+          advance(parser); // Consume the comma
+          continue;
+        }
+        // If neither, there's a parsing error.
+        throw new Error(
+          `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`
+        );
+      }
+
+      const endToken = advance(parser); // Consume the RIGHT_BRACKET
+      if (endToken.type !== TokenType.RIGHT_BRACKET) {
+        throw new Error(
+          `Expected ']' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`
+        );
+      }
+
+      return createArrayNode(arrayElements, startToken, endToken);
+    },
+  ],
+  [
+    TokenType.LEFT_BRACE,
+    (parser, token) => {
+      const startToken = token; // Consume left brace
+
+      const properties: ObjectProperty[] = [];
+
+      let next = peek(parser);
+      while (!isAtEnd(parser) && next.type !== TokenType.RIGHT_BRACE) {
+        const propertyName = parseExpression(parser);
+
+        next = advance(parser);
+        if (next.type !== TokenType.COLON) {
+          throw new Error(
+            `Expected ':' at line ${next.line} column ${next.column}, got ${next.lexeme}`
+          );
+        }
+        const expr = parseExpression(parser);
+
+        const property = createObjectProperty(propertyName, expr);
+        properties.push(property);
+
+        // If there's a closing brace, object has finished, break.
+        next = peek(parser);
+        if (next.type === TokenType.RIGHT_BRACE) {
+          break;
+        }
+        // If there's a comma, consume it and keep going.
+        if (next.type === TokenType.COMMA) {
+          advance(parser); // Consume the comma
+          continue;
+        }
+        // If neither, there's a parsing error.
+        throw new Error(
+          `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`
+        );
+      }
+
+      const endToken = advance(parser); // Consume the RIGHT_BRACE
+      if (endToken.type !== TokenType.RIGHT_BRACE) {
+        throw new Error(
+          `Expected '}' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`
+        );
+      }
+
+      return createObjectNode(properties, startToken, endToken);
     },
   ],
 ]);
@@ -204,93 +289,10 @@ function parseExpression(parser: Parser, rbp = 0): ExpressionNode {
   return left;
 }
 
-function parseArray(parser: Parser): ArrayNode {
-  const startToken = advance(parser);
-  if (startToken.type !== TokenType.LEFT_BRACKET) {
-    throw new Error(
-      `Expected '[' at line ${startToken.line} column ${startToken.column}, got ${startToken.lexeme}`
-    );
-  }
-  const elements: ASTNode[] = [];
-
-  let next = peek(parser);
-  while (!isAtEnd(parser) && next.type !== TokenType.RIGHT_BRACKET) {
-    const expr = parseExpression(parser);
-    elements.push(expr);
-
-    // If there's a comma, consume it, otherwise expect a closing bracket
-    next = peek(parser);
-    if (next.type === TokenType.COMMA) {
-      advance(parser); // Consume the comma
-    } else if (next.type !== TokenType.RIGHT_BRACKET) {
-      throw new Error(
-        `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`
-      );
-    }
-  }
-
-  const endToken = advance(parser); // Consume the RIGHT_BRACKET
-  if (endToken.type !== TokenType.RIGHT_BRACKET) {
-    throw new Error(
-      `Expected ']' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`
-    );
-  }
-
-  return createArrayNode(elements, startToken, endToken);
-}
-
-function parseObject(parser: Parser): ObjectNode {
-  const startToken = advance(parser); // Consume left brace
-  if (startToken.type !== TokenType.LEFT_BRACE) {
-    throw new Error(
-      `Expected '{' at line ${startToken.line} column ${startToken.column}, got ${startToken.lexeme}`
-    );
-  }
-  const properties: ObjectProperty[] = [];
-
-  let next = peek(parser);
-  while (!isAtEnd(parser) && next.type !== TokenType.RIGHT_BRACE) {
-    const propertyName = parseExpression(parser);
-    const expr = parseExpression(parser);
-
-    // If there's a comma, consume it, otherwise expect a closing bracket
-    next = peek(parser);
-    if (next.type === TokenType.COMMA) {
-      advance(parser); // Consume the comma
-    } else if (next.type !== TokenType.RIGHT_BRACKET) {
-      throw new Error(
-        `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`
-      );
-    }
-  }
-
-  const endToken = advance(parser); // Consume the RIGHT_BRACKET
-  if (endToken.type !== TokenType.RIGHT_BRACKET) {
-    throw new Error(
-      `Expected ']' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`
-    );
-  }
-
-  return createArrayNode(elements, startToken, endToken);
-}
-
 export function parse(parser: Parser): ASTNode {
   resetParser(parser);
 
-  const token = peek(parser);
-
-  let result: ASTNode;
-  switch (token.type) {
-    case TokenType.LEFT_BRACE:
-      // result = parseObject(parser);
-      result = parseExpression(parser);
-      break;
-    case TokenType.LEFT_BRACKET:
-      result = parseArray(parser);
-      break;
-    default:
-      result = parseExpression(parser);
-  }
+  const result = parseExpression(parser);
 
   return result;
 }
