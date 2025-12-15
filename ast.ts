@@ -75,8 +75,6 @@ export function createBinaryNode(
   };
 }
 
-export type ExpressionNode = LiteralNode | UnaryNode | BinaryNode;
-
 export type ArrayNode = {
   type: "Array";
   elements: ASTNode[];
@@ -98,10 +96,21 @@ export function createArrayNode(
 }
 
 export type ObjectProperty = {
-  key: string;
-  value: LiteralNode;
-  keyToken: Token;
+  type: "ObjectProperty";
+  key: ExpressionNode;
+  value: ExpressionNode;
 };
+
+export function createObjectProperty(
+  key: ExpressionNode,
+  value: ExpressionNode
+): ObjectProperty {
+  return {
+    type: "ObjectProperty",
+    key,
+    value,
+  };
+}
 
 export type ObjectNode = {
   type: "Object";
@@ -123,9 +132,11 @@ export function createObjectNode(
   };
 }
 
-export type ASTNode =
+export type ExpressionNode =
   | LiteralNode
   | UnaryNode
   | BinaryNode
   | ArrayNode
   | ObjectNode;
+
+export type ASTNode = ExpressionNode;
