@@ -22,7 +22,7 @@ type BinaryOperator = typeof BinaryOperators[keyof typeof BinaryOperators];
 
 export type Operator = UnaryOperator | BinaryOperator;
 
-type LiteralNode = {
+export type LiteralNode = {
   type: "Literal";
   value: JsonPPValue;
   token: Token;
@@ -39,7 +39,7 @@ export function createLiteralNode(
   };
 }
 
-type UnaryNode = {
+export type UnaryNode = {
   type: "Unary";
   operator: UnaryOperator;
   right: ExpressionNode;
@@ -59,7 +59,7 @@ export function createUnaryNode(
   };
 }
 
-type BinaryNode = {
+export type BinaryNode = {
   type: "Binary";
   left: ExpressionNode;
   operator: BinaryOperator;
