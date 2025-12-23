@@ -1,14 +1,14 @@
 import {
-  ASTNode,
+  type ASTNode,
+  type Operator,
+  UnaryOperators,
+  BinaryOperators,
   createArrayNode,
   createLiteralNode,
   createObjectNode,
   createObjectProperty,
   createUnaryNode,
   ExpressionNode,
-  ObjectProperty,
-  Operator,
-  Operators,
 } from "./ast.ts";
 import { Token, TokenType } from "./token.ts";
 
@@ -28,22 +28,22 @@ type LedFn = (
 ) => ExpressionNode;
 
 const precedence: Record<Operator, number> = {
-  [Operators.UNARY_BANG]: 80,
-  [Operators.UNARY_MINUS]: 80,
-  [Operators.UNARY_PLUS]: 80,
-  [Operators.BINARY_EXPONENT]: 70,
-  [Operators.BINARY_DIVIDES]: 60,
-  [Operators.BINARY_TIMES]: 60,
-  [Operators.BINARY_PLUS]: 50,
-  [Operators.BINARY_MINUS]: 50,
+  [UnaryOperators.BANG]: 80,
+  [UnaryOperators.MINUS]: 80,
+  [UnaryOperators.PLUS]: 80,
+  [BinaryOperators.EXPONENT]: 70,
+  [BinaryOperators.DIVIDES]: 60,
+  [BinaryOperators.TIMES]: 60,
+  [BinaryOperators.PLUS]: 50,
+  [BinaryOperators.MINUS]: 50,
 };
 
 const bindingPowers: Partial<Record<TokenType, number>> = {
-  [TokenType.CARET]: precedence[Operators.BINARY_EXPONENT],
-  [TokenType.SLASH]: precedence[Operators.BINARY_DIVIDES],
-  [TokenType.STAR]: precedence[Operators.BINARY_TIMES],
-  [TokenType.MINUS]: precedence[Operators.BINARY_MINUS],
-  [TokenType.PLUS]: precedence[Operators.BINARY_PLUS],
+  [TokenType.CARET]: precedence[BinaryOperators.EXPONENT],
+  [TokenType.SLASH]: precedence[BinaryOperators.DIVIDES],
+  [TokenType.STAR]: precedence[BinaryOperators.TIMES],
+  [TokenType.MINUS]: precedence[BinaryOperators.MINUS],
+  [TokenType.PLUS]: precedence[BinaryOperators.PLUS],
 };
 
 const nud = new Map<TokenType, NudFn>([
@@ -62,8 +62,8 @@ const nud = new Map<TokenType, NudFn>([
     TokenType.BANG,
     (parser, token) =>
       createUnaryNode(
-        Operators.UNARY_BANG,
-        parseExpression(parser, precedence[Operators.UNARY_BANG]),
+        UnaryOperators.BANG,
+        parseExpression(parser, precedence[UnaryOperators.BANG]),
         token
       ),
   ],
@@ -71,8 +71,8 @@ const nud = new Map<TokenType, NudFn>([
     TokenType.PLUS,
     (parser, token) =>
       createUnaryNode(
-        Operators.UNARY_PLUS,
-        parseExpression(parser, precedence[Operators.UNARY_PLUS]),
+        UnaryOperators.PLUS,
+        parseExpression(parser, precedence[UnaryOperators.PLUS]),
         token
       ),
   ],
@@ -80,8 +80,8 @@ const nud = new Map<TokenType, NudFn>([
     TokenType.MINUS,
     (parser, token) =>
       createUnaryNode(
-        Operators.BINARY_MINUS,
-        parseExpression(parser, precedence[Operators.UNARY_MINUS]),
+        UnaryOperators.MINUS,
+        parseExpression(parser, precedence[UnaryOperators.MINUS]),
         token
       ),
   ],
@@ -139,7 +139,7 @@ const nud = new Map<TokenType, NudFn>([
     (parser, token) => {
       const startToken = token; // Consume left brace
 
-      const properties: ObjectProperty[] = [];
+      const properties = [];
 
       let next = peek(parser);
       while (!isAtEnd(parser) && next.type !== TokenType.RIGHT_BRACE) {
@@ -189,9 +189,9 @@ const led = new Map<TokenType, LedFn>([
     TokenType.PLUS,
     (parser, left, token) => ({
       type: "Binary",
-      operator: Operators.BINARY_PLUS,
+      operator: BinaryOperators.PLUS,
       left,
-      right: parseExpression(parser, precedence[Operators.BINARY_PLUS]),
+      right: parseExpression(parser, precedence[BinaryOperators.PLUS]),
       token,
     }),
   ],
@@ -199,9 +199,9 @@ const led = new Map<TokenType, LedFn>([
     TokenType.MINUS,
     (parser, left, token) => ({
       type: "Binary",
-      operator: Operators.BINARY_MINUS,
+      operator: BinaryOperators.MINUS,
       left,
-      right: parseExpression(parser, precedence[Operators.BINARY_MINUS]),
+      right: parseExpression(parser, precedence[BinaryOperators.MINUS]),
       token,
     }),
   ],
@@ -209,9 +209,9 @@ const led = new Map<TokenType, LedFn>([
     TokenType.STAR,
     (parser, left, token) => ({
       type: "Binary",
-      operator: Operators.BINARY_TIMES,
+      operator: BinaryOperators.TIMES,
       left,
-      right: parseExpression(parser, precedence[Operators.BINARY_TIMES]),
+      right: parseExpression(parser, precedence[BinaryOperators.TIMES]),
       token,
     }),
   ],
@@ -219,9 +219,9 @@ const led = new Map<TokenType, LedFn>([
     TokenType.SLASH,
     (parser, left, token) => ({
       type: "Binary",
-      operator: Operators.BINARY_DIVIDES,
+      operator: BinaryOperators.DIVIDES,
       left,
-      right: parseExpression(parser, precedence[Operators.BINARY_DIVIDES]),
+      right: parseExpression(parser, precedence[BinaryOperators.DIVIDES]),
       token,
     }),
   ],
@@ -229,9 +229,9 @@ const led = new Map<TokenType, LedFn>([
     TokenType.CARET,
     (parser, left, token) => ({
       type: "Binary",
-      operator: Operators.BINARY_EXPONENT,
+      operator: BinaryOperators.EXPONENT,
       left,
-      right: parseExpression(parser, precedence[Operators.BINARY_EXPONENT] - 1),
+      right: parseExpression(parser, precedence[BinaryOperators.EXPONENT] - 1),
       token,
     }),
   ],

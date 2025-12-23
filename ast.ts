@@ -2,18 +2,25 @@ import { Token } from "./token.ts";
 
 type JsonPPValue = string | number | boolean | null;
 
-export const Operators = {
-  UNARY_PLUS: "UNARY_PLUS",
-  UNARY_MINUS: "UNARY_MINUS",
-  UNARY_BANG: "UNARY_BANG",
-  BINARY_PLUS: "BINARY_PLUS",
-  BINARY_MINUS: "BINARY_MINUS",
-  BINARY_TIMES: "BINARY_TIMES",
-  BINARY_DIVIDES: "BINARY_DIVIDES",
-  BINARY_EXPONENT: "BINARY_EXPONENT",
+export const UnaryOperators = {
+  PLUS: "U_PLUS",
+  MINUS: "U_MINUS",
+  BANG: "BANG"
 } as const;
 
-export type Operator = keyof typeof Operators;
+type UnaryOperator = typeof UnaryOperators[keyof typeof UnaryOperators];
+
+export const BinaryOperators = {
+  PLUS: "PLUS",
+  MINUS: "MINUS",
+  TIMES: "TIMES",
+  DIVIDES: "DIVIDES",
+  EXPONENT: "EXPONENT",
+} as const;
+
+type BinaryOperator = typeof BinaryOperators[keyof typeof BinaryOperators];
+
+export type Operator = UnaryOperator | BinaryOperator;
 
 type LiteralNode = {
   type: "Literal";
@@ -34,13 +41,13 @@ export function createLiteralNode(
 
 type UnaryNode = {
   type: "Unary";
-  operator: Operator;
+  operator: UnaryOperator;
   right: ExpressionNode;
   token: Token;
 };
 
 export function createUnaryNode(
-  operator: Operator,
+  operator: UnaryOperator,
   right: ExpressionNode,
   token: Token
 ): UnaryNode {
@@ -55,14 +62,14 @@ export function createUnaryNode(
 type BinaryNode = {
   type: "Binary";
   left: ExpressionNode;
-  operator: Operator;
+  operator: BinaryOperator;
   right: ExpressionNode;
   token: Token;
 };
 
 export function createBinaryNode(
   left: ExpressionNode,
-  operator: Operator,
+  operator: BinaryOperator,
   right: ExpressionNode,
   token: Token
 ): BinaryNode {
@@ -95,7 +102,7 @@ export function createArrayNode(
   };
 }
 
-export type ObjectProperty = {
+type ObjectProperty = {
   type: "ObjectProperty";
   key: ExpressionNode;
   value: ExpressionNode;
