@@ -1,4 +1,4 @@
-import { ASTNode, BinaryOperators, UnaryOperators } from "./ast.ts";
+import { ASTNode } from "./ast.ts";
 
 type JSON = string;
 
@@ -12,7 +12,7 @@ export function createCompiler(ast: ASTNode): Compiler {
   };
 }
 
-function compile(compiler: Compiler): JSON {
+export function compile(compiler: Compiler): JSON {
   const root = compiler.ast;
 
   return compileAST(root);
@@ -21,57 +21,29 @@ function compile(compiler: Compiler): JSON {
 function compileAST(node: ASTNode): JSON {
   switch (node.type) {
     case "Literal": {
-      switch (typeof node.value) {
-        case "string":
-          return `"${node.value}"`;
-        case "number":
-          return `${node.value}`;
-        case "object":
-          return `${node.value}`;
-        case "boolean":
-          return `${node.value}`;
-        default:
-          throw new Error(
-            `Expected valid value at line ${node.token.line} column ${node.token.column}, got ${node.token.lexeme}`
-          );
+      if (node.value === null) {
+        return "null";
       }
-    }
-    case "Unary": {
-      const token = node.token;
-      const right = compileAST(node.right);
-      switch (node.operator) {
-        case UnaryOperators.PLUS:
-          return right;
-        case UnaryOperators.MINUS:
-          return `-${right}`;
-        case UnaryOperators.BANG:
-          return `${!compileAST(node.right)}`;
-        default:
-          throw new Error(
-            `Expected unary operator at line ${token.line} column ${token.column}, got ${token.lexeme}`
-          );
+      if (typeof node.value === "string") {
+        return `"${node.value}"`;
       }
+      return node.value.toString();
     }
-    case "Binary": {
-      const token = node.token;
-      switch (node.operator) {
-        case BinaryOperators.PLUS:
-          return `${compileAST(node.left) + compileAST(node.right)}`;
-        case BinaryOperators.MINUS:
-          return `${compileAST(node.left) - compileAST(node.right)}`;
-        case "TIMES":
-          return `${compileAST(node.left) * compileAST(node.right)}`;
-        case "DIVIDES":
-          return `${compileAST(node.left) / compileAST(node.right)}`;
-        case "EXPONENT":
-          return `${Math.pow(compileAST(node.left), compileAST(node.right))}`;
-        default:
-          throw new Error(
-            `Expected binary operator at line ${token.line} column ${token.column}, got ${token.lexeme}`
-          );
-      }
+    case "Array": {
+      const elements = node.elements.map(compileAST).join(",");
+      return `[${elements}]`;
     }
-    case "Array":
-    case "Object":
+    case "Object": {
+      const properties = node.properties
+        .map(
+          (prop) =>
+            `${compileAST(prop.key)}:${compileAST(prop.value)}`
+        )
+        .join(",");
+      return `{${properties}}`;
+    }
+    default:
+      throw new Error(`Unexpected node type`);
   }
 }
+
