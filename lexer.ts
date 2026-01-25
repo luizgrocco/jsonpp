@@ -67,14 +67,14 @@ function handleEscape(lexer: Lexer): void {
         const ch = advance(lexer);
         if (!/[0-9a-fA-F]/.test(ch)) {
           throw new Error(
-            `Invalid Unicode escape at line ${lexer.line} column ${lexer.column}`
+            `Invalid Unicode escape at line ${lexer.line} column ${lexer.column}`,
           );
         }
       }
       break;
     default:
       throw new Error(
-        `Invalid escape character \\${char} at line ${lexer.line} column ${lexer.column}`
+        `Invalid escape character \\${char} at line ${lexer.line} column ${lexer.column}`,
       );
   }
 }
@@ -94,7 +94,7 @@ function stringToken(lexer: Lexer): Token {
 
   if (advance(lexer) !== '"')
     throw new Error(
-      `Unterminated string at line ${lexer.line} column ${lexer.column}`
+      `Unterminated string at line ${lexer.line} column ${lexer.column}`,
     );
 
   // slice from start to just before closing quote
@@ -191,7 +191,7 @@ export function tokenize(lexer: Lexer): Token[] {
           continue;
         }
         throw new Error(
-          `Unexpected character '${char}' at line ${lexer.line}, column ${lexer.column}`
+          `Unexpected character '${char}' at line ${lexer.line}, column ${lexer.column}`,
         );
     }
   }

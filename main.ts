@@ -3,8 +3,9 @@
 import { parseArgs } from "@std/cli/parse-args";
 import { createLexer, tokenize } from "./lexer.ts";
 import { createParser, parse } from "./parser.ts";
-import { createSemanticAnalyzer, analyze } from "./semantic_analyzer.ts";
-import { createCompiler, compile } from "./compiler.ts";
+import { analyze } from "./semantic_analyzer.ts";
+import { evaluate } from "./evaluator.ts";
+import { compile } from "./compiler.ts";
 
 const args = parseArgs(Deno.args, {
   alias: { h: "help", f: "file" },
@@ -21,16 +22,15 @@ if (args.help || !args.file) {
 
 async function main() {
   try {
-    const source = await Deno.readTextFile(args.file as string);
+    const source = Deno.readTextFileSync(args.file as string);
     const lexer = createLexer(source);
     const tokens = tokenize(lexer);
     const parser = createParser(tokens);
     const ast = parse(parser);
-    const semanticAnalyzer = createSemanticAnalyzer();
-    analyze(semanticAnalyzer, ast);
-    const compiler = createCompiler(ast);
-    const compiled = compile(compiler);
-    await Deno.writeTextFile(args.output as string, JSON.stringify(compiled));
+    const ir = analyze(ast);
+    const result = evaluate(ir);
+    const compiled = compile(result);
+    await Deno.writeTextFile(args.output as string, compiled);
   } catch (e) {
     if (e instanceof Error) {
       console.error(e.message);

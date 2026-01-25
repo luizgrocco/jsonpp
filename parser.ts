@@ -24,7 +24,7 @@ type NudFn = (parser: Parser, token: Token) => ExpressionNode;
 type LedFn = (
   parser: Parser,
   left: ExpressionNode,
-  token: Token
+  token: Token,
 ) => ExpressionNode;
 
 const precedence: Record<Operator, number> = {
@@ -64,7 +64,7 @@ const nud = new Map<TokenType, NudFn>([
       createUnaryNode(
         UnaryOperators.BANG,
         parseExpression(parser, precedence[UnaryOperators.BANG]),
-        token
+        token,
       ),
   ],
   [
@@ -73,7 +73,7 @@ const nud = new Map<TokenType, NudFn>([
       createUnaryNode(
         UnaryOperators.PLUS,
         parseExpression(parser, precedence[UnaryOperators.PLUS]),
-        token
+        token,
       ),
   ],
   [
@@ -82,7 +82,7 @@ const nud = new Map<TokenType, NudFn>([
       createUnaryNode(
         UnaryOperators.MINUS,
         parseExpression(parser, precedence[UnaryOperators.MINUS]),
-        token
+        token,
       ),
   ],
   [
@@ -92,7 +92,7 @@ const nud = new Map<TokenType, NudFn>([
       const end = advance(parser);
       if (end.type !== TokenType.RIGHT_PAREN)
         throw new Error(
-          `Expected ) at line ${end.line} column ${end.column}, got ${end.lexeme}`
+          `Expected ) at line ${end.line} column ${end.column}, got ${end.lexeme}`,
         );
       return expr;
     },
@@ -120,14 +120,14 @@ const nud = new Map<TokenType, NudFn>([
         }
         // If neither, there's a parsing error.
         throw new Error(
-          `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`
+          `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`,
         );
       }
 
       const endToken = advance(parser); // Consume the RIGHT_BRACKET
       if (endToken.type !== TokenType.RIGHT_BRACKET) {
         throw new Error(
-          `Expected ']' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`
+          `Expected ']' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`,
         );
       }
 
@@ -148,7 +148,7 @@ const nud = new Map<TokenType, NudFn>([
         next = advance(parser);
         if (next.type !== TokenType.COLON) {
           throw new Error(
-            `Expected ':' at line ${next.line} column ${next.column}, got ${next.lexeme}`
+            `Expected ':' at line ${next.line} column ${next.column}, got ${next.lexeme}`,
           );
         }
         const expr = parseExpression(parser);
@@ -168,14 +168,14 @@ const nud = new Map<TokenType, NudFn>([
         }
         // If neither, there's a parsing error.
         throw new Error(
-          `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`
+          `Expected ',' at line ${next.line} column ${next.column}, got ${next.lexeme}`,
         );
       }
 
       const endToken = advance(parser); // Consume the RIGHT_BRACE
       if (endToken.type !== TokenType.RIGHT_BRACE) {
         throw new Error(
-          `Expected '}' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`
+          `Expected '}' at line ${endToken.line} column ${endToken.column}, got ${endToken.lexeme}`,
         );
       }
 
@@ -269,7 +269,7 @@ function parseExpression(parser: Parser, rbp = 0): ExpressionNode {
   const nudFn = parser.nud.get(token.type);
   if (!nudFn)
     throw new Error(
-      `Expected expression at line ${token.line} column ${token.column}, got ${token.lexeme}`
+      `Expected expression at line ${token.line} column ${token.column}, got ${token.lexeme}`,
     );
 
   let left = nudFn(parser, token);
@@ -279,7 +279,7 @@ function parseExpression(parser: Parser, rbp = 0): ExpressionNode {
     const ledFn = parser.led.get(next.type);
     if (!ledFn)
       throw new Error(
-        `Expected operator at line ${next.line} column ${next.column}, got ${next.lexeme} `
+        `Expected operator at line ${next.line} column ${next.column}, got ${next.lexeme} `,
       );
     advance(parser);
     left = ledFn(parser, left, next);

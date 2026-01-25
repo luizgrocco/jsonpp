@@ -1,49 +1,26 @@
-import { ASTNode } from "./ast.ts";
+import { RuntimeValue } from "./evaluator.ts";
 
-type JSON = string;
-
-type Compiler = {
-  ast: ASTNode;
-};
-
-export function createCompiler(ast: ASTNode): Compiler {
-  return {
-    ast,
-  };
-}
-
-export function compile(compiler: Compiler): JSON {
-  const root = compiler.ast;
-
-  return compileAST(root);
-}
-
-function compileAST(node: ASTNode): JSON {
-  switch (node.type) {
-    case "Literal": {
-      if (node.value === null) {
-        return "null";
-      }
-      if (typeof node.value === "string") {
-        return `"${node.value}"`;
-      }
-      return node.value.toString();
-    }
-    case "Array": {
-      const elements = node.elements.map(compileAST).join(",");
-      return `[${elements}]`;
-    }
-    case "Object": {
-      const properties = node.properties
-        .map(
-          (prop) =>
-            `${compileAST(prop.key)}:${compileAST(prop.value)}`
-        )
-        .join(",");
-      return `{${properties}}`;
-    }
-    default:
-      throw new Error(`Unexpected node type`);
+export function compile(value: RuntimeValue): string {
+  if (value === null) {
+    return "null";
   }
+  if (typeof value === "string") {
+    return `"${value}"`;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value.toString();
+  }
+  if (Array.isArray(value)) {
+    const elements = value.map((element) => compile(element)).join(",");
+    return `[${elements}]`;
+  }
+  if (typeof value === "object") {
+    const properties = Object.entries(value)
+      .map(([key, val]) => `"${key}":${compile(val)}`)
+      .join(",");
+    return `{${properties}}`;
+  }
+
+  throw new Error(`Unexpected value type: ${typeof value}`);
 }
 
